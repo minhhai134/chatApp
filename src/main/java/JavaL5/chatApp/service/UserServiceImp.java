@@ -37,6 +37,7 @@ public class UserServiceImp implements UserService {
                          userName(request.getUserName()).
                          build();
 
+        rabbitTemplate.convertAndSend("email-exchange", "email-routing-key",user.getClientUserId());
         return userRepository.save(user);
 
     }

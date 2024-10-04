@@ -16,7 +16,7 @@ public class RabbitMQConfig {
     @Bean
     public Queue emailQueue(){
         return QueueBuilder.durable("emailQueue")
-                .withArgument("x-dead-letter-exchange", "email-dlx-exchange") // Forward faild message to DLX
+                .withArgument("x-dead-letter-exchange", "email-dlx-exchange") // Forward faild message to DLX "key - value"
 //                .withArgument()
                 .withArgument("x-message-ttl", 60000) // Time to live for the messages in the original queue (optional)
                 .build();

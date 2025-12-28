@@ -16,7 +16,6 @@ import SD.ChatApp.model.User;
 import SD.ChatApp.model.conversation.Conversation;
 import SD.ChatApp.model.conversation.GroupMetaData;
 import SD.ChatApp.model.conversation.Membership;
-import SD.ChatApp.enums.Conversation_Type;
 import SD.ChatApp.enums.Membership_Status;
 import SD.ChatApp.enums.Notification_Type;
 import SD.ChatApp.repository.UserRepository;
@@ -69,9 +68,12 @@ public class ConversationServiceImpl implements ConversationService {
 //        }
 
 
+        // In Server-Centric model, this creates a DM channel within a DM server context
+        // For now, we create a conversation without serverId for backward compatibility
+        // TODO: Migrate to proper DM server structure
         Conversation newConversation = conversationRepository.save(
                 Conversation.builder().
-                        type(Conversation_Type.OneToOne).
+                        channelName("DM").
                         lastActive(request.getLastActive()).
                         build()
         );
@@ -158,9 +160,12 @@ public class ConversationServiceImpl implements ConversationService {
             CreateGroupRequest request){
         User user = userRepository.findByUsername(principal.getName()).orElseThrow();
 
+        // In Server-Centric model, groups should be created as servers with channels
+        // For backward compatibility, we create a conversation without serverId
+        // TODO: Migrate to proper server structure
         Conversation newConversation = conversationRepository.save(
                 Conversation.builder().
-                        type(Conversation_Type.Group).
+                        channelName(request.getGroupName()).
                         lastActive(Instant.now()).
                         build()
         );

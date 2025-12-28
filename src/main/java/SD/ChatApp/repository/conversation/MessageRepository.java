@@ -9,7 +9,7 @@ import org.springframework.stereotype.Repository;
 import java.util.List;
 
 @Repository
-public interface MessageRepository extends JpaRepository<Message, String> {
+public interface MessageRepository extends JpaRepository<Message, Long> {
 
     @Query(value ="select m from Message m where m.conversationId = :cv_id " +
             "and m.id < :pivot order by id desc LIMIT 10" )

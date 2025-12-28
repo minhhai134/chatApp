@@ -32,4 +32,20 @@ public class GroupConversationDto {
 
     private Membership_Status membershipStatus;
 
+    // Constructor for queries without type (Server-Centric model)
+    public GroupConversationDto(String conversationId, Instant conversationLastActive, long lastMessageID,
+            String lastMessageContent, Instant lastSeen, String membershipId, String adminId,
+            String groupName, Membership_Status membershipStatus) {
+        this.conversationId = conversationId;
+        this.conversationType = Conversation_Type.Group; // Default to Group
+        this.conversationLastActive = conversationLastActive;
+        this.lastMessageID = lastMessageID;
+        this.lastMessageContent = lastMessageContent;
+        this.lastSeen = lastSeen;
+        this.membershipId = membershipId;
+        this.adminId = adminId;
+        this.groupName = groupName;
+        this.membershipStatus = membershipStatus;
+    }
+
 }

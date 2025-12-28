@@ -17,7 +17,6 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.messaging.handler.annotation.MessageMapping;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
-import org.springframework.messaging.simp.annotation.SendToUser;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
@@ -37,33 +36,41 @@ public class MessageController {
     private final UserRepository userRepository;
 
     @MessageMapping("/one_to_one_chat")
-    @SendToUser("/queue/messages")
     public ChatMessageReceiving sendOneToOneMessage(Principal principal, ChatMessageSending input) throws JsonProcessingException {
-        log.info("got input {}", input);
+        log.info("💬 Got one-to-one message input: {}", input);
 
         ChatMessageReceiving chatMessage = messageService.sendMessage(principal, input);
         if(chatMessage==null) return null;
 
-        // send chat message to topic exchange
-        String routingKey = "chat.private." + input.getDestinationId();
+        // Broadcast to conversation topic - both sender and receiver are subscribed
+        // This is the single source of truth for message delivery
+        String conversationTopic = "/topic/" + input.getConversationId();
+        messagingTemplate.convertAndSend(conversationTopic, chatMessage);
+        log.info("📢 Broadcast message to conversation topic: {}", conversationTopic);
 
-        User receiver = userRepository.findById(input.getDestinationId()).orElseThrow(UserNotFoundException::new);
-        messagingTemplate.convertAndSendToUser(
-                receiver.getUsername(), "/queue/messages", chatMessage);
-        // rabbitTemplate.convertAndSend(MessageQueueConfig.CHAT_EXCHANGE, routingKey,
-        // objectMapper.writeValueAsString(chatMessage));
-//        log.info("sent message to chat exchange = {}, routing Key = {}, message = {}",
-//                MessageQueueConfig.CHAT_EXCHANGE,
-//                routingKey, chatMessage);
         return chatMessage;
     }
 
     @MessageMapping("/group_chat")
     public ChatMessageReceiving sendGroupMessage(Principal principal, ChatMessageSending input) throws JsonProcessingException{
+        log.info("📥 GROUP_CHAT received from user: {}", principal.getName());
+        log.info("📦 Message payload: {}", input);
+        log.info("🔍 ConversationId: {}, DestinationId: {}, Type: {}", 
+                input.getConversationId(), input.getDestinationId(), input.getConversationType());
+        
         ChatMessageReceiving chatMessage = messageService.sendMessage(principal, input);
-        if(chatMessage==null) return null;
-
+        
+        if(chatMessage==null) {
+            log.error("❌ Message service returned null!");
+            return null;
+        }
+        
+        log.info("✅ Message saved with ID: {}", chatMessage.getMessage().getId());
+        log.info("📤 Broadcasting to topic: /topic/{}", input.getDestinationId());
+        
         messagingTemplate.convertAndSend("/topic/"+input.getDestinationId(), chatMessage);
+        
+        log.info("✅ Message broadcast complete");
         return chatMessage;
     }
 
@@ -102,14 +109,10 @@ public class MessageController {
         ChatMessageReceiving chatMessage = messageService.sendFile(principal, message, file);
         if(chatMessage==null) return null;
 
-        if(message.getConversationType()==Conversation_Type.OneToOne){
-            User receiver = userRepository.findById(destinationId).orElseThrow(UserNotFoundException::new);
-            messagingTemplate.convertAndSendToUser(
-                    receiver.getUsername(), "/queue/messages", chatMessage);
-        }
-        else if(message.getConversationType()==Conversation_Type.Group){
-            messagingTemplate.convertAndSend("/topic/"+destinationId, chatMessage);
-        }
+        // Broadcast to conversation topic - single source of truth for file messages
+        String topic = "/topic/" + conversationId;
+        messagingTemplate.convertAndSend(topic, chatMessage);
+        log.info("📢 Broadcast file message to topic: {}", topic);
 
         return ResponseEntity.status(HttpStatus.OK).body(chatMessage);
     }

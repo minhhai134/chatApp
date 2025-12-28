@@ -17,15 +17,19 @@ public class ChatAppApplication {
 
 		UserRepository userRepository = context.getBean(UserRepository.class);
 
-		BCryptPasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
-		for (int i=1;i<=4;i++) {
-			userRepository.save(User.builder().
-					username("username"+Integer.toString(i)).
-					password(passwordEncoder.encode("1")).
-					name("user"+Integer.toString(i)).
-					onlineStatus("on").
-					role(Role.USER).
-					build());
+		// Only create users if database is empty
+		if (userRepository.count() == 0) {
+			BCryptPasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
+			for (int i=1;i<=4;i++) {
+				userRepository.save(User.builder().
+						username("username"+Integer.toString(i)).
+						password(passwordEncoder.encode("1")).
+						name("user"+Integer.toString(i)).
+						onlineStatus("on").
+						role(Role.USER).
+						build());
+			}
+			System.out.println("Created 4 test users: username1-username4 with password '1'");
 		}
 	}
 

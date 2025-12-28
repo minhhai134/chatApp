@@ -6,7 +6,7 @@ spring:
   datasource:
     url: 'jdbc:postgresql://localhost:5432/chatapp'
     username: postgres
-    password: damminhhai
+    password: damminhhai13
     driver-class-name: org.postgresql.Driver
 
 #     url: 'jdbc:mysql://localhost:3306/chatapp'
@@ -17,7 +17,7 @@ spring:
   jpa:
     generate-ddl: true
     hibernate:
-      ddl-auto: create-drop
+      ddl-auto: update
     show-sql: true
 
   rabbitmq:

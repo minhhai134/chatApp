@@ -14,6 +14,7 @@ import SD.ChatApp.repository.conversation.ConversationRepository;
 import SD.ChatApp.repository.conversation.MembershipRepository;
 import SD.ChatApp.repository.conversation.MessageRepository;
 import SD.ChatApp.repository.UserRepository;
+import SD.ChatApp.repository.server.ServerMembershipRepository;
 import SD.ChatApp.service.file.UploadService;
 import SD.ChatApp.service.network.BlockService;
 import lombok.RequiredArgsConstructor;
@@ -32,11 +33,15 @@ public class MessageServiceImpl implements MessageService {
     private final UserRepository userRepository;
     private final ConversationRepository conversationRepository;
     private final MembershipRepository membershipRepository;
+    private final ServerMembershipRepository serverMembershipRepository;
     private final MessageRepository messageRepository;
     private final BlockService blockService;
     private final UploadService uploadService;
 
     private Message saveMessage(User sender, ChatMessageSending message){
+        // Get conversation first to check if it's a server channel
+        Conversation conversation = conversationRepository.findById(message.getConversationId()).orElseThrow();
+
         Message savedMesssage = messageRepository.save(
                 Message.builder().
                         conversationId(message.getConversationId()).
@@ -47,21 +52,24 @@ public class MessageServiceImpl implements MessageService {
                         build()
         );
 
-        /*
-        Update Membership_Status if needed
-         */
         log.info("Message:{}", message);
-//        if(message.getMembershipStatus()==Membership_Status.PENDING){
+
+        // Check if this is a server channel (has serverId) or a DM conversation
+        if (conversation.getServerId() != null) {
+            // Server channel - verify user is a server member
+            // ServerMembership is checked in checkMessageDestination, no need to update status here
+            log.info("Server channel message - serverId: {}", conversation.getServerId());
+        } else {
+            // DM conversation - update Membership status if needed
             Membership membership = membershipRepository.findByConversationIdAndUserId(
                     message.getConversationId(), sender.getId()).orElseThrow();
             membership.setStatus(Membership_Status.ACTIVE);
             membershipRepository.save(membership);
-//        }
+        }
 
         /*
         Update Conversation's lastActive and lastMessageId
          */
-        Conversation conversation = conversationRepository.findById(message.getConversationId()).orElseThrow();
         conversation.setLastActive(message.getSentTime());
         conversation.setLastMessageID(savedMesssage.getId());
         conversation.setLastMessageContent(savedMesssage.getContent());
@@ -87,8 +95,18 @@ public class MessageServiceImpl implements MessageService {
             Conversation groupConversation = conversationRepository.findById(message.getDestinationId()).
                     orElseThrow(GroupNotFoundException::new);
 
-            membershipRepository.findByConversationIdAndUserId(
-                    message.getConversationId(), sender.getId()).orElseThrow(GroupNotFoundException::new);
+            // Check if this is a server channel or a regular group
+            if (groupConversation.getServerId() != null) {
+                // Server channel - verify user is a server member
+                serverMembershipRepository.findByServerIdAndUserId(
+                        groupConversation.getServerId(), sender.getId())
+                        .orElseThrow(() -> new GroupNotFoundException());
+                log.info("Server channel destination verified - serverId: {}", groupConversation.getServerId());
+            } else {
+                // Regular group - use Membership
+                membershipRepository.findByConversationIdAndUserId(
+                        message.getConversationId(), sender.getId()).orElseThrow(GroupNotFoundException::new);
+            }
 
             return groupConversation.getId();
         }

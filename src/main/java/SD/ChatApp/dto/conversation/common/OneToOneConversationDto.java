@@ -24,10 +24,22 @@ public class OneToOneConversationDto {
 
     private String lastMessageContent;
 
-//    private Membership_Status status; Status nay de lam gi vay??
-
     private Instant friendLastSeen;
 
+    // Constructor for queries without type (Server-Centric model)
+    public OneToOneConversationDto(String id, Instant conversationLastActive, long lastMessageID, String lastMessageContent, Instant friendLastSeen, String friendId, String friendName, String friendAvt) {
+        this.conversationId = id;
+        this.conversationType = Conversation_Type.OneToOne; // Default to OneToOne for DMs
+        this.conversationLastActive = conversationLastActive;
+        this.friendLastSeen = friendLastSeen;
+        this.friendId = friendId;
+        this.friendName = friendName;
+        this.lastMessageID = lastMessageID;
+        this.lastMessageContent = lastMessageContent;
+        this.friendAvt = friendAvt;
+    }
+
+    // Legacy constructor with type parameter
     public OneToOneConversationDto(String id, Conversation_Type conversationType, Instant conversationLastActive, long lastMessageID, String lastMessageContent, Instant friendLastSeen, String friendId, String friendName, String friendAvt) {
         this.conversationId = id;
         this.conversationType = conversationType;
@@ -38,7 +50,6 @@ public class OneToOneConversationDto {
         this.lastMessageID = lastMessageID;
         this.lastMessageContent = lastMessageContent;
         this.friendAvt = friendAvt;
-//        this.membershipStatus = membershipStatus;
     }
 
     public OneToOneConversationDto(String id, Conversation_Type conversationType, Instant conversationLastActive, long lastMessageID, String lastMessageContent, Instant friendLastSeen, String friendId, String friendName) {
@@ -50,7 +61,6 @@ public class OneToOneConversationDto {
         this.friendName = friendName;
         this.lastMessageID = lastMessageID;
         this.lastMessageContent = lastMessageContent;
-//        this.friendAvt = friendAvt;
     }
 
     private String friendId;

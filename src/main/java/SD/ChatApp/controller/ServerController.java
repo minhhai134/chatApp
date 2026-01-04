@@ -90,5 +90,22 @@ public class ServerController {
         serverService.kickMember(principal, serverId, userId);
         return ResponseEntity.noContent().build();
     }
+
+    @GetMapping("/{serverId}/invitable-friends")
+    public ResponseEntity<GetInvitableFriendsResponse> getInvitableFriends(
+            Principal principal,
+            @PathVariable String serverId) {
+        List<InvitableFriendDto> friends = serverService.getInvitableFriends(principal, serverId);
+        return ResponseEntity.ok(GetInvitableFriendsResponse.builder().friends(friends).build());
+    }
+
+    @PostMapping("/{serverId}/members/{friendId}")
+    public ResponseEntity<Void> inviteFriendToServer(
+            Principal principal,
+            @PathVariable String serverId,
+            @PathVariable String friendId) {
+        serverService.inviteFriendToServer(principal, serverId, friendId);
+        return ResponseEntity.status(HttpStatus.CREATED).build();
+    }
 }
 

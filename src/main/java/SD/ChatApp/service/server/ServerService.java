@@ -27,5 +27,9 @@ public interface ServerService {
     List<ServerMemberDto> getServerMembers(Principal principal, String serverId);
 
     void kickMember(Principal principal, String serverId, String userId);
+
+    List<InvitableFriendDto> getInvitableFriends(Principal principal, String serverId);
+
+    void inviteFriendToServer(Principal principal, String serverId, String friendId);
 }
 

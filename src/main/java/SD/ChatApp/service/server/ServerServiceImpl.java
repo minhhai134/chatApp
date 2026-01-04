@@ -1,6 +1,7 @@
 package SD.ChatApp.service.server;
 
 import SD.ChatApp.dto.server.*;
+import SD.ChatApp.dto.user.GetFriendListResponse;
 import SD.ChatApp.enums.ServerRole;
 import SD.ChatApp.exception.server.*;
 import SD.ChatApp.exception.user.UserNotFoundException;
@@ -345,6 +346,78 @@ public class ServerServiceImpl implements ServerService {
         log.info("User '{}' kicked from server '{}' by '{}'",
                 kickedUser != null ? kickedUser.getName() : userId,
                 server.getName(), admin.getName());
+    }
+
+    @Override
+    public List<InvitableFriendDto> getInvitableFriends(Principal principal, String serverId) {
+        User user = userRepository.findByUsername(principal.getName())
+                .orElseThrow(UserNotFoundException::new);
+
+        // Verify server exists and user is a member
+        serverRepository.findById(serverId)
+                .orElseThrow(ServerNotFoundException::new);
+
+        if (!serverMembershipRepository.existsByServerIdAndUserId(serverId, user.getId())) {
+            throw new ServerMembershipNotFoundException();
+        }
+
+        // Get all friends
+        List<GetFriendListResponse> allFriends = userRepository.getFriendList(user.getId());
+
+        // Filter out friends who are already members
+        return allFriends.stream()
+                .filter(friend -> !serverMembershipRepository.existsByServerIdAndUserId(serverId, friend.getFriendId()))
+                .map(friend -> InvitableFriendDto.builder()
+                        .friendId(friend.getFriendId())
+                        .friendName(friend.getFriendName())
+                        .friendAvatar(friend.getFriendAvt())
+                        .build())
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    @Transactional
+    public void inviteFriendToServer(Principal principal, String serverId, String friendId) {
+        User inviter = userRepository.findByUsername(principal.getName())
+                .orElseThrow(UserNotFoundException::new);
+
+        Server server = serverRepository.findById(serverId)
+                .orElseThrow(ServerNotFoundException::new);
+
+        // Verify inviter is a member
+        if (!serverMembershipRepository.existsByServerIdAndUserId(serverId, inviter.getId())) {
+            throw new ServerMembershipNotFoundException();
+        }
+
+        // Verify friend exists
+        User friend = userRepository.findById(friendId)
+                .orElseThrow(UserNotFoundException::new);
+
+        // Check if already a member
+        if (serverMembershipRepository.existsByServerIdAndUserId(serverId, friendId)) {
+            throw new AlreadyMemberException();
+        }
+
+        // Create membership
+        ServerMembership membership = ServerMembership.builder()
+                .serverId(serverId)
+                .userId(friendId)
+                .role(ServerRole.MEMBER)
+                .build();
+        serverMembershipRepository.save(membership);
+
+        // Notify the invited user
+        messagingTemplate.convertAndSendToUser(
+                friend.getUsername(), "/queue/messages",
+                java.util.Map.of(
+                        "notificationType", "INVITED_TO_SERVER",
+                        "serverId", serverId,
+                        "serverName", server.getName(),
+                        "inviterName", inviter.getName()
+                ));
+
+        log.info("User '{}' invited to server '{}' by '{}'",
+                friend.getName(), server.getName(), inviter.getName());
     }
 }
 
